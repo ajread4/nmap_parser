@@ -1,38 +1,52 @@
-# Python script to parse NMAP scans
+# Python script to parse NMAP scans written by AJ Read (ajread4)
+
 import argparse
 import os
 from bs4 import BeautifulSoup
 import re
+import lxml
 
 def main():
     """
     	Main function for nmap_parse
     """
     parser = argparse.ArgumentParser(
-        description='nmap_parse - a capability to examine nmap scans')
-    parser.add_argument('file' ,action='store',help='specify the input nmap scan (can be either normal, xml, or grepable)')
+        description='nmap_parse - a capability to extract key port and IP information from nmap scans')
+    parser.add_argument('file' ,action='store',help='specify the input nmap scan (needs to be either .nmap, .xml, or .gnmap extension)')
+    parser.add_argument('output_directory',action='store',help='specify output directory for key port and IP information from scans')
     args=parser.parse_args()
-    determine_type(args.file)
+    determine_type(args.file,create_directory(args.output_directory))
 
+
+"""
+Create output directory 
+"""
+def create_directory(output_dir):
+    if os.path.isdir(os.path.abspath(output_dir)):
+        return os.path.abspath(output_dir)
+    else:
+        os.mkdir(os.path.abspath(output_dir))
+        return os.path.abspath(output_dir)
 
 """
 Determine the type of nmap file 
 """
-def determine_type(input_file):
+def determine_type(input_file,output_dir):
     if os.path.splitext(input_file)[1] == ".xml":
+        print("[+] Requested Parsing of XML file")
         ip_data,port_data=analyze_xml(input_file)
-        ip_file(ip_data)
-        port_file(port_data)
+        ip_file(ip_data,output_dir)
+        port_file(port_data,output_dir)
     elif os.path.splitext(input_file)[1] == ".gnmap":
-        print("GNMAP file")
+        print("[+] Requested Parsing of GNMAP file")
         ip_data, port_data =analyze_gnmap(input_file)
-        ip_file(ip_data)
-        port_file(port_data)
+        ip_file(ip_data,output_dir)
+        port_file(port_data,output_dir)
     elif os.path.splitext(input_file)[1] == ".nmap":
-        print("NMAP file")
+        print("[+] Requested Parsing of NMAP file")
         ip_data, port_data =analyze_nmap(input_file)
-        ip_file(ip_data)
-        port_file(port_data)
+        ip_file(ip_data,output_dir)
+        port_file(port_data,output_dir)
     else:
         print("Improper input file")
 
@@ -59,8 +73,6 @@ def analyze_xml(input_file):
                     else:
                         port_mapping[p.get("portid")] = [getIP]
             final_mapping[getIP]=ip_list
-        else:
-            print(f'No ports open for ' + getIP)
     return final_mapping,port_mapping
 """
 Analyze GNMAP nmap file
@@ -118,18 +130,18 @@ def analyze_nmap(input_file):
 """
 Write to a text file for each port with IP:PORT combination
 """
-def port_file(port_ip_file):
+def port_file(port_ip_file,output_dir):
     for k,v in port_ip_file.items():
-        with open(str(k) + "_open.txt", 'w') as f:
+        with open(os.path.join(output_dir,k) + "_open.txt", 'w') as f:
             for ips in v:
                 f.write(ips + ":" + str(k) + "\n")
 
 """
 Write to a text file for each IP listing each open port on a single line
 """
-def ip_file(ip_port_file):
+def ip_file(ip_port_file,output_dir):
     for k,v in ip_port_file.items():
-        with open(str(k) + "_open.txt", 'w') as f:
+        with open(os.path.join(output_dir,k) + "_open.txt", 'w') as f:
             for ports in v:
                 f.write(ports+"\n")
 
